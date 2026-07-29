@@ -1,0 +1,621 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8" />
+<title>Createur d'estimation — CalculMoteur</title>
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<script src="https://cdn.tailwindcss.com"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&family=League+Spartan:wght@600;700;800&display=swap" rel="stylesheet" />
+<script>
+  tailwind.config = {
+    theme: {
+      extend: {
+        fontFamily: {
+          sans: ["Poppins", "system-ui", "sans-serif"],
+          heading: ["League Spartan", "system-ui", "sans-serif"],
+        },
+        colors: {
+          brand: {
+            text: "#1C244B",
+            secondary: "#C4C8DF",
+            highlight: "#BBFB96",
+            dark: "#062D2B",
+            greenLight: "#e4fadb",
+            purple: "#e2ddfa",
+          },
+        },
+      },
+    },
+  };
+</script>
+<style>
+  body { font-family: "Poppins", sans-serif; background: #f4f6f5; }
+  h1,h2,h3 { font-family: "League Spartan", sans-serif; }
+  .input-base { @apply w-full px-3 py-2 rounded-lg border border-gray-300 bg-white text-sm focus:outline-none focus:border-brand-dark focus:ring-1 focus:ring-brand-dark; }
+  .label-base { @apply block text-[11px] font-semibold uppercase tracking-wide text-gray-600 mb-1; }
+  .btn-primary { @apply bg-brand-dark text-white font-semibold rounded-lg px-4 py-3 hover:bg-black transition disabled:opacity-40 disabled:cursor-not-allowed; }
+  .btn-secondary { @apply bg-white border border-gray-300 text-brand-text font-semibold rounded-lg px-3 py-2 text-sm hover:bg-gray-50 transition; }
+  .card { @apply bg-white rounded-xl border border-gray-200 shadow-sm; }
+  .pill { @apply inline-block px-2 py-0.5 rounded-full text-[10px] font-semibold uppercase tracking-wide; }
+  table.postes { width: 100%; font-size: 12px; }
+  table.postes th { background: #f3f4f6; text-align: left; padding: 5px 7px; font-weight: 600; color: #374151; }
+  table.postes td { padding: 5px 7px; border-bottom: 1px solid #f3f4f6; vertical-align: top; }
+  table.postes tr.lot-row td { background: #e4fadb; font-weight: 700; color: #062D2B; }
+  details > summary { cursor: pointer; user-select: none; }
+  details > summary::-webkit-details-marker { display: none; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .spinner { animation: spin 1s linear infinite; }
+  .num { text-align: right; white-space: nowrap; font-variant-numeric: tabular-nums; }
+</style>
+</head>
+<body class="text-brand-text">
+
+<div class="max-w-[1700px] mx-auto px-5 py-5">
+  <header class="mb-5 flex items-start justify-between gap-4">
+    <div>
+      <h1 class="text-2xl font-bold text-brand-text">Createur d'estimation</h1>
+      <p class="text-sm text-gray-600">
+        Skill <code class="bg-gray-200 px-1 rounded">calcul-moteur</code> execute via OpenRouter ·
+        outil local, ne jamais exposer ce serveur sur un reseau
+      </p>
+    </div>
+    <div id="health" class="text-[11px] text-gray-500 text-right leading-tight"></div>
+  </header>
+
+  <div class="grid grid-cols-1 lg:grid-cols-[380px_1fr] gap-5 items-start">
+
+    <!-- ============ SAISIE ============ -->
+    <div class="card p-4 lg:sticky lg:top-5">
+      <h2 class="font-bold mb-3">Demande client</h2>
+
+      <label class="label-base">Brief libre</label>
+      <textarea id="brief" rows="8" class="input-base mb-3"
+        placeholder="Renovation complete d'une salle de bains de 5 m2 dans un appartement de 68 m2 a Lille (59000), immeuble de 1975, occupe pendant les travaux, 3e etage sans ascenseur. Douche a l'italienne en remplacement de la baignoire, WC suspendu, meuble vasque, faience toute hauteur."></textarea>
+
+      <details class="mb-3" open>
+        <summary class="text-[11px] font-semibold uppercase tracking-wide text-gray-600 mb-2">
+          Contexte P0 — tout champ vide devient une hypothese ou une question bloquante
+        </summary>
+        <div class="grid grid-cols-2 gap-2 mt-2">
+          <div>
+            <label class="label-base">Type de bien</label>
+            <select id="typeBien" class="input-base">
+              <option value="">—</option>
+              <option>appartement</option>
+              <option>maison</option>
+              <option>local tertiaire</option>
+            </select>
+          </div>
+          <div>
+            <label class="label-base">Surface (m2)</label>
+            <input id="surface" type="number" min="1" step="1" class="input-base" />
+          </div>
+          <div>
+            <label class="label-base">Annee de construction</label>
+            <select id="annee" class="input-base">
+              <option value="">—</option>
+              <option>avant 1949</option>
+              <option>1949-1992</option>
+              <option>1993-2005</option>
+              <option>apres 2005</option>
+            </select>
+          </div>
+          <div>
+            <label class="label-base">Code postal</label>
+            <input id="codePostal" maxlength="5" class="input-base" />
+          </div>
+          <div>
+            <label class="label-base">Etage</label>
+            <input id="etage" class="input-base" placeholder="RDC, 3e…" />
+          </div>
+          <div class="flex flex-col justify-end gap-1 pb-1">
+            <label class="flex items-center gap-2 text-xs"><input type="checkbox" id="occupe" /> Logement occupe</label>
+            <label class="flex items-center gap-2 text-xs"><input type="checkbox" id="ascenseur" /> Ascenseur</label>
+            <label class="flex items-center gap-2 text-xs"><input type="checkbox" id="copropriete" /> Copropriete</label>
+          </div>
+        </div>
+      </details>
+
+      <label class="label-base">Photos de chantier (6 max)</label>
+      <div id="dropzone" class="border-2 border-dashed border-gray-300 rounded-lg p-3 text-center text-xs text-gray-500 mb-2 cursor-pointer hover:border-brand-dark transition">
+        Glisser des photos ici, ou cliquer
+        <input id="fileInput" type="file" accept="image/*" multiple class="hidden" />
+      </div>
+      <div id="thumbs" class="flex flex-wrap gap-2 mb-3"></div>
+
+      <label class="label-base">Modele</label>
+      <select id="model" class="input-base mb-1"></select>
+      <p id="modelNote" class="text-[11px] text-gray-500 mb-3 leading-tight"></p>
+
+      <label class="flex items-center gap-2 text-xs mb-3">
+        <input type="checkbox" id="controleP6" />
+        Passe de controle P6 (2e appel, relecture et corrections)
+      </label>
+
+      <p id="costEstimate" class="text-[11px] text-gray-500 mb-3"></p>
+
+      <button id="runBtn" class="btn-primary w-full">Generer l'estimation</button>
+      <button id="resetBtn" class="btn-secondary w-full mt-2">Reinitialiser le formulaire</button>
+      <p id="sessionCost" class="text-[11px] text-gray-500 mt-3 text-center"></p>
+    </div>
+
+    <!-- ============ RESULTAT ============ -->
+    <div class="space-y-4">
+      <div id="progress" class="card p-3 hidden">
+        <div class="flex items-center gap-3 text-sm">
+          <svg class="spinner w-4 h-4 text-brand-dark" viewBox="0 0 24 24" fill="none">
+            <circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="3" opacity=".25"/>
+            <path d="M22 12a10 10 0 0 1-10 10" stroke="currentColor" stroke-width="3" stroke-linecap="round"/>
+          </svg>
+          <span id="progressLabel">Demarrage…</span>
+          <span id="progressTimer" class="text-gray-400 ml-auto num"></span>
+        </div>
+      </div>
+
+      <div id="banner" class="hidden"></div>
+      <div id="versionSwitch" class="hidden"></div>
+      <div id="summary"></div>
+      <div id="devis"></div>
+      <div id="panels"></div>
+      <div id="diagnostics"></div>
+      <div id="rawBox"></div>
+
+      <div id="empty" class="card p-10 text-center text-gray-400 text-sm">
+        Renseigne un brief client et lance une estimation.
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+// ------------------------------------------------------------ etat
+const $ = (id) => document.getElementById(id);
+const FIELDS = ["brief","typeBien","surface","annee","codePostal","etage"];
+const CHECKS = ["occupe","ascenseur","copropriete","controleP6"];
+const LS_KEY = "calculmoteur-form-v1";
+
+let MODELS = [];
+let photos = [];
+let running = false;
+let sessionCost = 0;
+let versions = {};   // "initiale" | "post-controle" -> {estimation, totals}
+let shown = null;
+
+const eur = (n) => (n ?? 0).toLocaleString("fr-FR", { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + " €";
+const eur0 = (n) => Math.round(n ?? 0).toLocaleString("fr-FR") + " €";
+const esc = (s) => String(s ?? "").replace(/[&<>"]/g, (c) => ({ "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;" }[c]));
+
+// ------------------------------------------------------------ persistance
+function saveForm() {
+  const d = {};
+  FIELDS.forEach((f) => d[f] = $(f).value);
+  CHECKS.forEach((f) => d[f] = $(f).checked);
+  d.model = $("model").value;
+  localStorage.setItem(LS_KEY, JSON.stringify(d));
+}
+function loadForm() {
+  try {
+    const d = JSON.parse(localStorage.getItem(LS_KEY) || "{}");
+    FIELDS.forEach((f) => { if (d[f] !== undefined) $(f).value = d[f]; });
+    CHECKS.forEach((f) => { if (d[f] !== undefined) $(f).checked = d[f]; });
+    if (d.model) $("model").value = d.model;
+  } catch {}
+}
+
+// ------------------------------------------------------------ init
+async function init() {
+  const [mr, hr] = await Promise.all([
+    fetch("/api/models").then((r) => r.json()),
+    fetch("/api/health").then((r) => r.json()).catch(() => null),
+  ]);
+  MODELS = mr.models;
+  $("model").innerHTML = MODELS.map((m) =>
+    `<option value="${m.id}">${esc(m.label)} — ${m.priceIn}/${m.priceOut} $ par M</option>`).join("");
+  $("model").value = mr.default;
+
+  if (hr) {
+    $("health").innerHTML = hr.skill
+      ? `skill : ${hr.skill.files.length} fichiers · ~${hr.skill.approxTokens.toLocaleString("fr-FR")} tokens<br>
+         schema ${hr.schemaOk ? "OK" : "KO"} · cle ${hr.keyPresent ? "presente" : "ABSENTE"}`
+      : `<span class="text-red-600">skill illisible : ${esc(hr.skillError)}</span>`;
+  }
+
+  loadForm();
+  updateModelNote();
+  [...FIELDS, ...CHECKS, "model"].forEach((f) =>
+    $(f).addEventListener("input", () => { saveForm(); updateModelNote(); }));
+  $("model").addEventListener("change", updateModelNote);
+  $("controleP6").addEventListener("change", updateModelNote);
+}
+
+function updateModelNote() {
+  const m = MODELS.find((x) => x.id === $("model").value);
+  if (!m) return;
+  $("modelNote").textContent = m.note + (m.vision ? "" : " Photos analysees par une pre-passe vision.");
+  // 14k entree + 6k sortie, double approximativement avec la passe P6
+  const base = (14000 * m.priceIn + 6000 * m.priceOut) / 1e6;
+  const total = base + ($("controleP6").checked ? base * 0.45 : 0);
+  $("costEstimate").textContent = `Cout estime : ~${total.toFixed(3)} $ par estimation`;
+}
+
+// ------------------------------------------------------------ photos
+$("dropzone").addEventListener("click", () => $("fileInput").click());
+$("dropzone").addEventListener("dragover", (e) => { e.preventDefault(); $("dropzone").classList.add("border-brand-dark"); });
+$("dropzone").addEventListener("dragleave", () => $("dropzone").classList.remove("border-brand-dark"));
+$("dropzone").addEventListener("drop", (e) => {
+  e.preventDefault();
+  $("dropzone").classList.remove("border-brand-dark");
+  addFiles(e.dataTransfer.files);
+});
+$("fileInput").addEventListener("change", (e) => addFiles(e.target.files));
+
+function addFiles(list) {
+  [...list].slice(0, 6 - photos.length).forEach((f) => {
+    if (!f.type.startsWith("image/")) return;
+    const rd = new FileReader();
+    rd.onload = () => downscale(rd.result).then((d) => { photos.push(d); renderThumbs(); });
+    rd.readAsDataURL(f);
+  });
+}
+// Le redimensionnement est une garantie de cout, pas un confort :
+// 6 photos pleine resolution font exploser le nombre de tokens d'entree.
+function downscale(dataUrl, max = 1600) {
+  return new Promise((res) => {
+    const img = new Image();
+    img.onload = () => {
+      const s = Math.min(1, max / Math.max(img.width, img.height));
+      const c = document.createElement("canvas");
+      c.width = Math.round(img.width * s);
+      c.height = Math.round(img.height * s);
+      c.getContext("2d").drawImage(img, 0, 0, c.width, c.height);
+      res(c.toDataURL("image/jpeg", 0.8));
+    };
+    img.onerror = () => res(dataUrl);
+    img.src = dataUrl;
+  });
+}
+function renderThumbs() {
+  $("thumbs").innerHTML = photos.map((p, i) =>
+    `<div class="relative"><img src="${p}" class="w-14 h-14 object-cover rounded border border-gray-300" />
+     <button data-i="${i}" class="rm absolute -top-1 -right-1 bg-white border border-gray-300 rounded-full w-4 h-4 text-[10px] leading-none">×</button></div>`).join("");
+  $("thumbs").querySelectorAll(".rm").forEach((b) =>
+    b.addEventListener("click", () => { photos.splice(+b.dataset.i, 1); renderThumbs(); }));
+}
+
+// ------------------------------------------------------------ run
+$("resetBtn").addEventListener("click", () => {
+  localStorage.removeItem(LS_KEY);
+  FIELDS.forEach((f) => $(f).value = "");
+  CHECKS.forEach((f) => $(f).checked = false);
+  photos = []; renderThumbs(); updateModelNote();
+});
+
+$("runBtn").addEventListener("click", run);
+
+let timerHandle = null;
+function startTimer() {
+  const t0 = Date.now();
+  timerHandle = setInterval(() => {
+    $("progressTimer").textContent = ((Date.now() - t0) / 1000).toFixed(0) + " s";
+  }, 500);
+}
+function stopTimer() { if (timerHandle) clearInterval(timerHandle); timerHandle = null; }
+
+async function run() {
+  if (running) return;
+  const brief = $("brief").value.trim();
+  if (!brief) { alert("Le brief client est obligatoire."); return; }
+
+  running = true;
+  $("runBtn").disabled = true;
+  $("runBtn").textContent = "Estimation en cours…";
+  $("empty").classList.add("hidden");
+  ["banner","versionSwitch","summary","devis","panels","diagnostics","rawBox"].forEach((id) => $(id).innerHTML = "");
+  $("banner").classList.add("hidden");
+  $("versionSwitch").classList.add("hidden");
+  $("progress").classList.remove("hidden");
+  $("progressLabel").textContent = "Preparation du prompt…";
+  versions = {}; shown = null;
+  startTimer();
+
+  const body = {
+    brief,
+    typeBien: $("typeBien").value || undefined,
+    surface: $("surface").value ? Number($("surface").value) : undefined,
+    annee: $("annee").value || undefined,
+    codePostal: $("codePostal").value || undefined,
+    etage: $("etage").value || undefined,
+    occupe: $("occupe").checked || undefined,
+    ascenseur: $("ascenseur").checked || undefined,
+    copropriete: $("copropriete").checked || undefined,
+    photos,
+    model: $("model").value,
+    controleP6: $("controleP6").checked,
+  };
+
+  try {
+    const resp = await fetch("/api/estimate", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify(body),
+    });
+    if (!resp.ok) { showBanner("error", "Erreur serveur : " + await resp.text()); return; }
+    await consumeSSE(resp);
+  } catch (e) {
+    showBanner("error", "Erreur reseau : " + e.message);
+  } finally {
+    running = false;
+    stopTimer();
+    $("runBtn").disabled = false;
+    $("runBtn").textContent = "Generer l'estimation";
+    $("progress").classList.add("hidden");
+  }
+}
+
+// Lecteur SSE manuel : on POST un corps, EventSource ne convient pas.
+async function consumeSSE(resp) {
+  const reader = resp.body.getReader();
+  const dec = new TextDecoder();
+  let buf = "";
+  while (true) {
+    const { value, done } = await reader.read();
+    if (done) break;
+    buf += dec.decode(value, { stream: true });
+    const blocks = buf.split("\n\n");
+    buf = blocks.pop() || "";
+    for (const b of blocks) {
+      let evt = "message", data = "";
+      for (const line of b.split("\n")) {
+        if (line.startsWith("event:")) evt = line.slice(6).trim();
+        else if (line.startsWith("data:")) data += line.slice(5).trim();
+      }
+      if (!data) continue;
+      let parsed; try { parsed = JSON.parse(data); } catch { continue; }
+      handleEvent(evt, parsed);
+    }
+  }
+}
+
+// ------------------------------------------------------------ evenements
+let diag = {};
+
+function handleEvent(evt, d) {
+  if (evt === "prompt") {
+    diag = { prompt: d };
+    $("progressLabel").textContent =
+      `Prompt assemble : ${d.files.length} fichiers, ~${d.approxTokens.toLocaleString("fr-FR")} tokens${d.cached ? " (cache)" : " (relu)"}`;
+  }
+  else if (evt === "phase") $("progressLabel").textContent = d.label;
+  else if (evt === "heartbeat") { /* le timer suffit */ }
+  else if (evt === "llm") diag.llm = d;
+  else if (evt === "parse") diag.parse = d;
+  else if (evt === "coerce") diag.coerce = d;
+  else if (evt === "validate") { (diag.validate ??= {})[d.version] = d; }
+  else if (evt === "controle") diag.controle = d;
+  else if (evt === "corrections") diag.corrections = d;
+  else if (evt === "estimation") {
+    versions[d.version] = d;
+    shown = d.version;
+    renderAll(d);
+    renderVersionSwitch();
+  }
+  else if (evt === "cost") {
+    diag.cost = d;
+    sessionCost += d.totalCostUsd;
+    $("sessionCost").textContent = `Cout cumule de la session : ${sessionCost.toFixed(3)} $`;
+    renderDiagnostics();
+  }
+  else if (evt === "error") showBanner("error", `[${d.stage}] ${d.message}`, d.raw);
+  else if (evt === "done") renderDiagnostics();
+}
+
+function showBanner(kind, msg, raw) {
+  const b = $("banner");
+  b.classList.remove("hidden");
+  const cls = kind === "error" ? "bg-red-50 border-red-300 text-red-800" : "bg-amber-50 border-amber-300 text-amber-900";
+  b.innerHTML = `<div class="card border ${cls} p-3 text-sm"><strong>${kind === "error" ? "Echec" : "Attention"}</strong> — ${esc(msg)}
+    ${raw ? `<details class="mt-2"><summary class="text-xs underline">reponse brute du modele</summary><pre class="mt-1 text-[10px] whitespace-pre-wrap max-h-64 overflow-auto">${esc(raw)}</pre></details>` : ""}</div>`;
+}
+
+function renderVersionSwitch() {
+  const keys = Object.keys(versions);
+  if (keys.length < 2) return;
+  const sw = $("versionSwitch");
+  sw.classList.remove("hidden");
+  sw.innerHTML = `<div class="card p-2 flex gap-2 items-center text-xs">
+    <span class="font-semibold">Version affichee :</span>
+    ${keys.map((k) => `<button data-v="${k}" class="vbtn px-2 py-1 rounded ${k === shown ? "bg-brand-dark text-white" : "bg-gray-100"}">${k}</button>`).join("")}
+    ${versions["post-controle"]?.delta ? `<span class="ml-auto text-gray-500">delta HT ${eur(versions["post-controle"].delta.total_ht)} · ${versions["post-controle"].delta.nbPostes >= 0 ? "+" : ""}${versions["post-controle"].delta.nbPostes} poste(s)</span>` : ""}
+  </div>`;
+  sw.querySelectorAll(".vbtn").forEach((b) => b.addEventListener("click", () => {
+    shown = b.dataset.v; renderAll(versions[shown]); renderVersionSwitch();
+  }));
+}
+
+// ------------------------------------------------------------ rendu
+function renderAll(d) {
+  renderSummary(d);
+  renderDevis(d);
+  renderPanels(d);
+  renderRaw(d);
+  renderDiagnostics();
+}
+
+function confColor(n) {
+  if (n === undefined || n === null) return "bg-gray-100 text-gray-600";
+  if (n < 50) return "bg-red-100 text-red-800";
+  if (n < 75) return "bg-amber-100 text-amber-900";
+  return "bg-emerald-100 text-emerald-800";
+}
+
+function renderSummary(d) {
+  const t = d.totals, e = d.estimation;
+  const cell = (label, val, extra = "") =>
+    `<div class="px-3 py-2 ${extra}"><div class="text-[10px] uppercase tracking-wide text-gray-500">${label}</div>
+     <div class="text-lg font-bold">${val}</div></div>`;
+  $("summary").innerHTML = `<div class="card divide-x divide-gray-200 grid grid-cols-2 md:grid-cols-6">
+    ${cell("Total HT", eur0(t.total_ht))}
+    ${cell("TVA", eur0(t.total_tva))}
+    ${cell("Total TTC", eur0(t.total_ttc))}
+    ${cell("Ratio", t.ratio_eur_m2 !== null ? t.ratio_eur_m2.toLocaleString("fr-FR") + " €/m2" : "—")}
+    ${cell("Postes", `${t.nbPostes} / ${t.parLot.length} lots`)}
+    <div class="px-3 py-2"><div class="text-[10px] uppercase tracking-wide text-gray-500">Confiance</div>
+      <div class="text-lg font-bold"><span class="px-2 rounded ${confColor(e.confiance_globale)}">${e.confiance_globale ?? "—"}</span></div></div>
+  </div>`;
+}
+
+function renderDevis(d) {
+  const e = d.estimation, t = d.totals;
+  const badge = (txt, cls) => `<span class="pill ${cls}">${esc(txt)}</span>`;
+  let html = "";
+
+  (e.lots ?? []).forEach((lot) => {
+    const lt = t.parLot.find((l) => l.metier === lot.metier && l.lot_label === lot.lot_label)
+            ?? t.parLot.find((l) => l.metier === lot.metier);
+    html += `<div class="card mb-3 overflow-hidden"><table class="postes">
+      <tr class="lot-row"><td colspan="5">${esc(lot.lot_label ?? lot.metier)}
+        <span class="font-normal text-[10px] opacity-70">(${esc(lot.metier)})</span></td>
+        <td class="num">${eur(lt?.ht ?? 0)}</td></tr>
+      <tr><th>Poste</th><th>Qte</th><th>Un.</th><th class="num">PU HT</th><th>TVA</th><th class="num">Total HT</th></tr>`;
+
+    (lot.postes ?? []).forEach((p) => {
+      const total = (p.qty ?? 0) * (p.prix_unitaire_ht ?? 0);
+      const bad = !(p.qty > 0);
+      html += `<tr class="${bad ? "bg-red-50" : ""}">
+        <td><details><summary class="font-medium">${esc(p.intitule)}</summary>
+          <div class="mt-1 text-[11px] text-gray-600 whitespace-pre-wrap">${esc(p.description)}</div>
+          <div class="mt-1 text-[11px] text-gray-500"><strong>Quantite :</strong> ${esc(p.qty_rationale)}</div>
+          <div class="text-[11px] text-gray-500"><strong>Prix :</strong> ${esc(p.rationale_prix)}</div>
+          <div class="mt-1">${badge(p.source_prix ?? "?", "bg-gray-100 text-gray-700")} ${badge(p.confiance ?? "?", p.confiance === "haute" ? "bg-emerald-100 text-emerald-800" : p.confiance === "basse" ? "bg-red-100 text-red-800" : "bg-amber-100 text-amber-900")}</div>
+        </details></td>
+        <td class="num">${(p.qty ?? 0).toLocaleString("fr-FR")}</td>
+        <td>${esc(p.unit)}</td>
+        <td class="num">${eur(p.prix_unitaire_ht)}</td>
+        <td class="num">${p.tva} %</td>
+        <td class="num font-semibold">${eur(total)}</td></tr>`;
+    });
+    html += `</table></div>`;
+  });
+
+  // Recapitulatif TVA par taux — un devis mixte porte plusieurs taux.
+  html += `<div class="card p-3 mb-3"><h3 class="font-bold text-sm mb-2">Recapitulatif</h3>
+    <table class="postes"><tr><th>Base HT</th><th>Taux</th><th class="num">TVA</th></tr>
+    ${t.parTaux.map((x) => `<tr><td class="num">${eur(x.base_ht)}</td><td>${x.taux} %</td><td class="num">${eur(x.tva)}</td></tr>`).join("")}
+    <tr class="lot-row"><td class="num">${eur(t.total_ht)}</td><td>Total</td><td class="num">${eur(t.total_tva)}</td></tr>
+    </table>
+    <div class="mt-2 text-right text-lg font-bold">Net a payer TTC : ${eur(t.total_ttc)}</div>
+    ${t.aleas ? `<div class="text-right text-xs text-gray-600">Aleas (${esc(t.aleas.mode)}) : ${t.aleas.montant_ht !== null ? eur(t.aleas.montant_ht) : "—"}${t.aleas.mode === "provision" ? " — hors total HT" : ""}</div>` : ""}
+    <p class="mt-2 text-[11px] text-gray-500">Estimation indicative, non contractuelle, tant qu'un maitre d'oeuvre ne l'a pas verifiee.</p>
+  </div>`;
+
+  $("devis").innerHTML = html;
+}
+
+function listPanel(title, items, cls) {
+  if (!items || !items.length) return "";
+  return `<div class="card p-3 mb-3"><h3 class="font-bold text-sm mb-2 ${cls}">${title}</h3>
+    <ul class="list-disc pl-5 text-xs space-y-1">${items.map((i) => `<li>${esc(i)}</li>`).join("")}</ul></div>`;
+}
+
+function renderPanels(d) {
+  const e = d.estimation;
+  let html = "";
+  // Les questions bloquantes decident si le devis est exploitable : en premier.
+  html += listPanel("Questions bloquantes", e.questions_bloquantes, "text-red-700");
+  if (e.confiance_globale !== undefined && e.confiance_globale < 50 && e.confiance_commentaire) {
+    html += `<div class="card p-3 mb-3 border-red-300 bg-red-50"><h3 class="font-bold text-sm text-red-800 mb-1">Confiance faible (${e.confiance_globale})</h3>
+      <p class="text-xs">${esc(e.confiance_commentaire)}</p></div>`;
+  }
+  html += listPanel("Alertes reglementaires", e.alertes_regulatoires, "text-amber-800");
+  html += listPanel("Hypotheses retenues", e.contexte?.hypotheses, "");
+  html += listPanel("Dispositifs d'aides", e.dispositifs_aides, "");
+  if (d.totals.plausibilite?.length) {
+    html += listPanel("Controles de plausibilite", d.totals.plausibilite, "text-amber-800");
+  }
+  $("panels").innerHTML = html;
+}
+
+function renderDiagnostics() {
+  const rows = [];
+  if (diag.prompt) rows.push(["Prompt", `${diag.prompt.files.length} fichiers · ~${diag.prompt.approxTokens.toLocaleString("fr-FR")} tokens · ${diag.prompt.cached ? "cache" : "relu du disque"} · mode JSON ${diag.prompt.jsonMode}`]);
+  if (diag.llm) rows.push(["Appel", `${diag.llm.usage.in.toLocaleString("fr-FR")} in / ${diag.llm.usage.out.toLocaleString("fr-FR")} out · ${(diag.llm.durationMs/1000).toFixed(1)} s · fin "${diag.llm.finishReason}"${diag.llm.continuations ? ` · ${diag.llm.continuations} continuation(s)` : ""}`]);
+  if (diag.parse) rows.push(["Extraction", `methode "${diag.parse.method}"${diag.parse.repairs?.length ? " · " + diag.parse.repairs.join(" · ") : " · propre"}`]);
+  if (diag.cost) rows.push(["Cout", `${diag.cost.totalCostUsd.toFixed(4)} $ · ${diag.cost.calls.map((c) => `${c.label} ${c.costUsd.toFixed(4)}`).join(" · ")}`]);
+
+  let html = `<div class="card p-3"><h3 class="font-bold text-sm mb-2">Diagnostics</h3>
+    <table class="postes">${rows.map(([k, v]) => `<tr><td class="font-semibold w-28">${k}</td><td>${esc(v)}</td></tr>`).join("")}</table>`;
+
+  const v = diag.validate?.[shown] ?? diag.validate?.["initiale"];
+  if (v) {
+    const errs = v.errors ?? [], warns = v.warns ?? [];
+    html += `<div class="mt-2 text-xs">
+      <span class="pill ${errs.length ? "bg-red-100 text-red-800" : "bg-emerald-100 text-emerald-800"}">${errs.length} erreur(s) de schema</span>
+      <span class="pill bg-gray-100 text-gray-700 ml-1">${warns.length} avertissement(s)</span></div>`;
+    if (errs.length || warns.length) {
+      html += `<details class="mt-1"><summary class="text-xs underline">detail</summary><table class="postes mt-1">
+        ${[...errs, ...warns].map((x) => `<tr><td class="${x.severity === "error" ? "text-red-700" : "text-gray-500"} w-8">${x.severity === "error" ? "ERR" : "warn"}</td><td class="font-mono text-[10px]">${esc(x.path)}</td><td>${esc(x.message)}</td></tr>`).join("")}
+      </table></details>`;
+    }
+  }
+
+  if (diag.coerce?.fixes?.length) {
+    html += `<details class="mt-2"><summary class="text-xs underline">${diag.coerce.fixes.length} normalisation(s) appliquee(s)</summary>
+      <table class="postes mt-1">${diag.coerce.fixes.map((f) => `<tr><td class="font-mono text-[10px]">${esc(f.path)}</td><td>${esc(f.from)} → <strong>${esc(f.to)}</strong></td><td class="text-gray-500">${esc(f.reason)}</td></tr>`).join("")}</table></details>`;
+  }
+
+  const tv = versions[shown]?.totals;
+  if (tv?.divergences?.length) {
+    html += `<div class="mt-2 text-xs"><div class="font-semibold text-amber-800 mb-1">Ecarts entre les totaux du modele et le recalcul (les valeurs affichees sont les recalculees)</div>
+      <table class="postes"><tr><th>Champ</th><th class="num">Modele</th><th class="num">Recalcule</th><th class="num">Ecart</th></tr>
+      ${tv.divergences.map((x) => `<tr><td>${esc(x.champ)}</td><td class="num">${eur(x.llm)}</td><td class="num">${eur(x.recalcule)}</td><td class="num">${x.ecart_pct !== null ? x.ecart_pct + " %" : "—"}</td></tr>`).join("")}</table></div>`;
+  }
+
+  if (diag.controle) {
+    html += `<div class="mt-2 text-xs"><div class="font-semibold">Passe P6 : ${diag.controle.ok ? esc(diag.controle.verdict) : "echec — " + esc(diag.controle.message)}</div>
+      ${diag.controle.commentaire ? `<p class="text-gray-600 mt-1">${esc(diag.controle.commentaire)}</p>` : ""}</div>`;
+  }
+  if (diag.corrections) {
+    const a = diag.corrections.applied ?? [], r = diag.corrections.rejected ?? [];
+    html += `<details class="mt-1"><summary class="text-xs underline">${a.length} correction(s) appliquee(s), ${r.length} refusee(s)</summary>
+      <table class="postes mt-1">
+      ${a.map((x) => `<tr><td class="text-emerald-700 w-8">ok</td><td class="font-mono text-[10px]">${esc(x.ref ?? x.cible)}.${esc(x.champ ?? "")}</td><td>${esc(String(x.from ?? ""))} → <strong>${esc(String(x.to ?? ""))}</strong></td><td class="text-gray-500">${esc(x.motif ?? "")}</td></tr>`).join("")}
+      ${r.map((x) => `<tr><td class="text-red-700 w-8">non</td><td class="font-mono text-[10px]">${esc(x.ref ?? x.cible)}.${esc(x.champ ?? "")}</td><td colspan="2" class="text-gray-500">${esc(x.raison)}</td></tr>`).join("")}
+      </table></details>`;
+  }
+
+  html += `</div>`;
+  $("diagnostics").innerHTML = html;
+}
+
+function renderRaw(d) {
+  const json = JSON.stringify(d.estimation, null, 2);
+  $("rawBox").innerHTML = `<div class="card p-3">
+    <div class="flex items-center gap-2 mb-2">
+      <h3 class="font-bold text-sm">JSON</h3>
+      <button id="copyBtn" class="btn-secondary ml-auto">Copier</button>
+      <button id="dlBtn" class="btn-secondary">Telecharger</button>
+    </div>
+    <details><summary class="text-xs underline">afficher</summary>
+      <pre class="mt-2 text-[10px] whitespace-pre-wrap max-h-96 overflow-auto bg-gray-50 p-2 rounded">${esc(json)}</pre>
+    </details></div>`;
+  $("copyBtn").addEventListener("click", () => {
+    navigator.clipboard.writeText(json);
+    $("copyBtn").textContent = "Copie";
+    setTimeout(() => $("copyBtn").textContent = "Copier", 1500);
+  });
+  $("dlBtn").addEventListener("click", () => {
+    const now = new Date();
+    const stamp = now.toISOString().slice(0, 16).replace(/[:T]/g, "-");
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(new Blob([json], { type: "application/json" }));
+    a.download = `estimation-${stamp}.json`;
+    a.click();
+  });
+}
+
+init();
+</script>
+</body>
+</html>
