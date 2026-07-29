@@ -1,0 +1,184 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Estimation Rapido'devis — sortie du moteur de chiffrage TCE",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "contexte",
+    "lots",
+    "totaux",
+    "alertes_regulatoires",
+    "dispositifs_aides",
+    "questions_bloquantes",
+    "confiance_globale"
+  ],
+  "properties": {
+    "contexte": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["type_bien", "surface_m2", "hypotheses"],
+      "properties": {
+        "type_bien": {
+          "type": "string",
+          "enum": ["appartement", "maison", "local tertiaire"]
+        },
+        "surface_m2": { "type": "number", "exclusiveMinimum": 0 },
+        "annee_construction": {
+          "type": "string",
+          "description": "Tranche ou annee. Tranches usuelles : avant 1949, 1949-1992, 1993-2005, apres 2005, inconnue."
+        },
+        "region": { "type": "string" },
+        "code_postal": { "type": "string", "pattern": "^[0-9]{5}$" },
+        "occupe": { "type": "boolean" },
+        "hypotheses": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 },
+          "description": "Chaque donnee manquante non bloquante devient une hypothese explicite."
+        }
+      }
+    },
+    "lots": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["metier", "lot_label", "postes"],
+        "properties": {
+          "metier": {
+            "type": "string",
+            "enum": [
+              "demolition",
+              "assainissement",
+              "toiture",
+              "isolation_ext",
+              "menuiserie",
+              "isolation_int",
+              "platrerie",
+              "electricite",
+              "plomberie",
+              "chauffage",
+              "ventilation",
+              "carrelage",
+              "peinture",
+              "autre"
+            ]
+          },
+          "lot_label": { "type": "string", "minLength": 1 },
+          "postes": {
+            "type": "array",
+            "minItems": 1,
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "ref",
+                "intitule",
+                "description",
+                "qty",
+                "unit",
+                "qty_rationale",
+                "prix_unitaire_ht",
+                "tva",
+                "source_prix",
+                "rationale_prix",
+                "confiance"
+              ],
+              "properties": {
+                "ref": { "type": "string", "minLength": 1 },
+                "intitule": { "type": "string", "minLength": 1 },
+                "description": {
+                  "type": "string",
+                  "minLength": 1,
+                  "description": "Phrase d'introduction terminee par ' :' puis 3 a 5 puces '- ...' separees par \\n."
+                },
+                "qty": {
+                  "type": "number",
+                  "exclusiveMinimum": 0,
+                  "description": "Jamais 0 (R8), jamais 1 par defaut sur un poste en m2 ou ml."
+                },
+                "unit": {
+                  "type": "string",
+                  "enum": ["m2", "ml", "u", "ens", "forfait", "h"]
+                },
+                "qty_rationale": { "type": "string", "minLength": 1 },
+                "prix_unitaire_ht": {
+                  "type": "number",
+                  "exclusiveMinimum": 0,
+                  "description": "PU de vente HT unitaire, fourniture et pose. Jamais un total."
+                },
+                "tva": { "type": "number", "enum": [5.5, 10, 20] },
+                "source_prix": {
+                  "type": "string",
+                  "enum": ["catalogue", "mediane_moe", "estimation"]
+                },
+                "rationale_prix": { "type": "string", "minLength": 1 },
+                "confiance": {
+                  "type": "string",
+                  "enum": ["haute", "moyenne", "basse"]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "totaux": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["total_ht", "total_tva", "total_ttc", "ratio_eur_m2"],
+      "properties": {
+        "total_ht": { "type": "number", "minimum": 0 },
+        "total_tva": { "type": "number", "minimum": 0 },
+        "total_ttc": { "type": "number", "minimum": 0 },
+        "ratio_eur_m2": { "type": "number", "minimum": 0 },
+        "aleas": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["mode"],
+          "properties": {
+            "mode": {
+              "type": "string",
+              "enum": ["poste", "provision", "aucun"],
+              "description": "poste = ligne visible dans le lot autre (deja dans total_ht) ; provision = hors total_ht."
+            },
+            "taux_pct": { "type": "number", "minimum": 0, "maximum": 30 },
+            "assiette_ht": { "type": "number", "minimum": 0 },
+            "montant_ht": { "type": "number", "minimum": 0 }
+          }
+        }
+      }
+    },
+    "alertes_regulatoires": {
+      "type": "array",
+      "items": { "type": "string", "minLength": 1 }
+    },
+    "dispositifs_aides": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1,
+        "description": "Dispositif et condition d'acces uniquement. Aucun montant, aucun bareme (R4)."
+      }
+    },
+    "questions_bloquantes": {
+      "type": "array",
+      "items": { "type": "string", "minLength": 1 },
+      "description": "Toute information manquante qui deplace le prix de plus de ~15 % (R11)."
+    },
+    "confiance_globale": { "type": "integer", "minimum": 0, "maximum": 100 },
+    "confiance_commentaire": {
+      "type": "string",
+      "description": "Obligatoire si confiance_globale < 50 : ce qui manque pour remonter le score."
+    }
+  },
+  "allOf": [
+    {
+      "if": {
+        "properties": { "confiance_globale": { "maximum": 49 } },
+        "required": ["confiance_globale"]
+      },
+      "then": { "required": ["confiance_commentaire"] }
+    }
+  ]
+}
