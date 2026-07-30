@@ -26,9 +26,46 @@ export function hasFileAccess(): boolean {
   return Boolean(g.Deno?.readTextFileSync && g.Deno?.statSync);
 }
 
+/**
+ * Ecrit une trace de diagnostic dans .debug/ et retourne son chemin.
+ * No-op silencieux quand il n'y a pas de disque, c'est-a-dire sur Vercel.
+ *
+ * Centralise ici pour la meme raison que ROOT : aucun appel a
+ * `new URL(litteral, import.meta.url)` ne doit subsister dans le graphe
+ * d'imports des fonctions Edge, sous peine de faire echouer le deploiement.
+ */
+export function writeDebugDump(name: string, content: string): string | null {
+  if (!hasFileAccess() || !ROOT) return null;
+  try {
+    const dir = `${ROOT}.debug/`;
+    g.Deno.mkdirSync(dir, { recursive: true });
+    const path = `${dir}${name}`;
+    g.Deno.writeTextFileSync(path, content);
+    return path;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Racine du depot, deduite de l'URL de ce module.
+ *
+ * Volontairement calculee par manipulation de chaine, et NON par
+ * `new URL("../../", import.meta.url)` : le bundler de Vercel analyse
+ * statiquement ce motif et le prend pour une reference d'asset a embarquer
+ * (`vc-blob-asset:../../`), ce qui fait echouer le deploiement de la fonction
+ * Edge. Ici on ne fait que du texte, rien a analyser.
+ *
+ * Retourne "" hors contexte fichier (Edge), ou le repli bundle prend le relais.
+ */
 const ROOT = (() => {
   try {
-    return new URL("../../", import.meta.url).pathname;
+    const u = import.meta.url;
+    if (!u.startsWith("file://")) return "";
+    const marker = "/app/lib/";
+    const i = u.lastIndexOf(marker);
+    if (i === -1) return "";
+    return decodeURIComponent(u.slice("file://".length, i + 1));
   } catch {
     return "";
   }

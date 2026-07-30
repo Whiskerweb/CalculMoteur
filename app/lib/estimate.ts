@@ -14,7 +14,7 @@ import { extractJson } from "./extract";
 import { coerce, loadSchema, validate } from "./validate";
 import { applyRecompute, recompute } from "./totaux";
 import { applyCorrections } from "./controle";
-import { hasFileAccess } from "./runtime";
+import { writeDebugDump } from "./runtime";
 
 const MAX_PHOTOS = 6;
 const MAX_CONTINUATIONS = 2;
@@ -275,16 +275,7 @@ export async function handleEstimate(req: Request): Promise<Response> {
           // La sortie brute est ecrite sur disque : 15k caracteres dans une
           // frame SSE sont inexploitables, et sans elle on ne peut pas
           // diagnostiquer pourquoi le modele a produit du JSON invalide.
-          let dump: string | null = null;
-          if (hasFileAccess()) {
-            try {
-              // deno-lint-ignore no-explicit-any
-              const D = (globalThis as any).Deno;
-              D.mkdirSync(new URL("../../.debug/", import.meta.url).pathname, { recursive: true });
-              dump = new URL("../../.debug/last-failed-raw.txt", import.meta.url).pathname;
-              D.writeTextFileSync(dump, done.text);
-            } catch { dump = null; }
-          }
+          const dump = writeDebugDump("last-failed-raw.txt", done.text);
           send("error", {
             fatal: true,
             stage: "parse",
