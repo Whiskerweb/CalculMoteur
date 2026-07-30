@@ -54,7 +54,7 @@ async function once(p: CallParams): Promise<CallResult> {
     model: p.model,
     messages,
     temperature: p.temperature ?? 0.2,
-    max_tokens: p.maxTokens ?? preset?.maxTokens ?? 16000,
+    max_tokens: p.maxTokens ?? preset?.maxTokens ?? 48000,
   };
 
   // Anthropic n'a pas de mode JSON : envoyer response_format est au mieux

@@ -17,7 +17,7 @@ import { applyCorrections } from "./controle";
 import { writeDebugDump } from "./runtime";
 
 const MAX_PHOTOS = 6;
-const MAX_CONTINUATIONS = 2;
+const MAX_CONTINUATIONS = 6;
 
 function sseEvent(event: string, data: unknown): string {
   return `event: ${event}\ndata: ${JSON.stringify(data)}\n\n`;
