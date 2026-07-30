@@ -4,11 +4,12 @@
 // Rapido2/supabase/functions/_shared/ai-router.ts, sans la couche providers.
 
 import { estimateCost, getPreset } from "./models.ts";
+import { env } from "./runtime.ts";
 
 const ENDPOINT = "https://openrouter.ai/api/v1/chat/completions";
 // Un devis complet fait 6-12k tokens de sortie : mesure a 180 s coupait Sonnet 5
 // en plein milieu. 10 min laisse de la marge y compris sur un gros chantier.
-const TIMEOUT_MS = Number(Deno.env.get("OPENROUTER_TIMEOUT_MS") ?? 600_000);
+const TIMEOUT_MS = Number(env("OPENROUTER_TIMEOUT_MS") ?? 600_000);
 
 export type ContentPart =
   | { type: "text"; text: string }
@@ -38,7 +39,7 @@ export interface CallParams {
 }
 
 function apiKey(): string {
-  const k = Deno.env.get("OPENROUTER_API_KEY");
+  const k = env("OPENROUTER_API_KEY");
   if (!k) throw new Error("OPENROUTER_API_KEY absente de l'environnement");
   return k;
 }

@@ -51,11 +51,65 @@ deno run --allow-env --allow-net --allow-read --allow-write --env-file=.env app/
 
 Puis ouvrir **http://127.0.0.1:8788/**.
 
+En local, le modèle par défaut est Sonnet 5 : aucune limite de durée ne s'applique.
+
 `--allow-write` ne sert qu'au dump de diagnostic en cas d'échec de parsing (`.debug/`, ignoré par
 git). Le serveur tourne sans, mais on perd cette trace.
 
-> **Ne jamais exposer ce serveur.** Il écoute sur `127.0.0.1`, sans authentification ni limite de
-> débit. Quiconque l'atteint dépense le crédit OpenRouter de la clé.
+> **Ce serveur local écoute sur `127.0.0.1`** et n'a ni authentification ni limite de débit. Ne pas
+> le rendre accessible depuis un réseau. Pour un accès public, passer par le déploiement Vercel
+> ci-dessous, et poser un plafond de crédit sur la clé.
+
+### Déploiement Vercel
+
+Le dépôt est déployable en l'état. Vercel détecte `public/index.html` comme site statique et
+`api/*.ts` comme fonctions Edge.
+
+**Une étape manuelle est obligatoire, sinon le site renvoie une erreur à chaque estimation :**
+
+> Dans Vercel → Settings → Environment Variables, ajouter `OPENROUTER_API_KEY` avec la clé,
+> pour les trois environnements (Production, Preview, Development), puis redéployer.
+
+`.env` n'est pas versionné, donc Vercel ne peut pas la deviner. `/api/health` répond
+`keyPresent: false` tant que ce n'est pas fait.
+
+#### Le skill est embarqué dans le bundle
+
+Le runtime Edge n'a pas de système de fichiers. `app/lib/skill-source.ts` contient donc une copie
+du skill, générée et versionnée. **Après toute modification de `SKILL.md`, `references/` ou
+`assets/schema.json`, il faut la régénérer** :
+
+```bash
+npm run bundle      # ou : deno run --allow-read --allow-write app/lib/build-source.ts
+```
+
+Sans ça, le site en ligne continue de servir l'ancienne version du skill alors que le local est à
+jour. En local, le disque reste prioritaire, donc l'édition à chaud fonctionne toujours.
+
+#### Modèle par défaut différent en ligne
+
+Une fonction serverless a une durée d'exécution bornée. Sonnet 5 met environ 75 s par estimation,
+ce qui dépasse ou frôle la limite selon le plan Vercel. La version déployée démarre donc sur
+**Gemini 3.1 Flash Lite** (8 s mesurées). Sonnet reste sélectionnable, avec un avertissement
+affiché dans l'interface.
+
+C'est une contrainte de plateforme, pas un choix de qualité : Gemini produit des devis moins
+complets (voir le tableau des modèles).
+
+#### Accès libre, et ce que ça implique
+
+Le site est en accès libre, sans mot de passe : c'est un choix assumé. Conséquence directe —
+**n'importe qui connaissant l'URL peut déclencher des estimations facturées sur ta clé**, sans
+limite.
+
+L'application ne peut pas plafonner la dépense : une fonction Edge n'a pas d'état persistant entre
+les appels. La protection doit donc être posée à la source :
+
+> Sur [openrouter.ai/settings/keys](https://openrouter.ai/settings/keys), donner à la clé un
+> **plafond de crédit** (par exemple 20 $). Au-delà, OpenRouter refuse les appels et le site
+> renvoie une erreur au lieu de continuer à dépenser.
+
+C'est la seule protection réellement efficace ici, et elle prend trente secondes.
 
 ### Ce que fait un run
 

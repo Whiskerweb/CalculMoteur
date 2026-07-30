@@ -57,8 +57,8 @@
     <div>
       <h1 class="text-2xl font-bold text-brand-text">Createur d'estimation</h1>
       <p class="text-sm text-gray-600">
-        Skill <code class="bg-gray-200 px-1 rounded">calcul-moteur</code> execute via OpenRouter ·
-        outil local, ne jamais exposer ce serveur sur un reseau
+        Skill <code class="bg-gray-200 px-1 rounded">calcul-moteur</code> execute via OpenRouter
+        <span id="envNote"></span>
       </p>
     </div>
     <div id="health" class="text-[11px] text-gray-500 text-right leading-tight"></div>
@@ -127,7 +127,8 @@
 
       <label class="label-base">Modele</label>
       <select id="model" class="input-base mb-1"></select>
-      <p id="modelNote" class="text-[11px] text-gray-500 mb-3 leading-tight"></p>
+      <p id="modelNote" class="text-[11px] text-gray-500 mb-1 leading-tight"></p>
+      <p id="slowWarn" class="text-[11px] text-amber-800 bg-amber-50 border border-amber-200 rounded p-2 mb-3 hidden leading-tight"></p>
 
       <label class="flex items-center gap-2 text-xs mb-3">
         <input type="checkbox" id="controleP6" />
@@ -177,6 +178,8 @@ const CHECKS = ["occupe","ascenseur","copropriete","controleP6"];
 const LS_KEY = "calculmoteur-form-v1";
 
 let MODELS = [];
+let DEPLOYED = false;
+const SERVERLESS_SAFE_SECONDS = 20;
 let photos = [];
 let running = false;
 let sessionCost = 0;
@@ -211,6 +214,10 @@ async function init() {
     fetch("/api/health").then((r) => r.json()).catch(() => null),
   ]);
   MODELS = mr.models;
+  DEPLOYED = Boolean(mr.deployed);
+  $("envNote").textContent = DEPLOYED
+    ? "· acces libre, chaque estimation consomme du credit"
+    : "· outil local, ne jamais exposer ce serveur sur un reseau";
   $("model").innerHTML = MODELS.map((m) =>
     `<option value="${m.id}">${esc(m.label)} — ${m.priceIn}/${m.priceOut} $ par M</option>`).join("");
   $("model").value = mr.default;
@@ -234,10 +241,22 @@ function updateModelNote() {
   const m = MODELS.find((x) => x.id === $("model").value);
   if (!m) return;
   $("modelNote").textContent = m.note + (m.vision ? "" : " Photos analysees par une pre-passe vision.");
+
+  // Sur la version deployee, la duree d'une fonction serverless est bornee.
+  const slow = DEPLOYED && m.typicalSeconds > SERVERLESS_SAFE_SECONDS;
+  const warn = $("slowWarn");
+  warn.classList.toggle("hidden", !slow);
+  if (slow) {
+    warn.textContent = `Ce modele met environ ${m.typicalSeconds} s par estimation`
+      + ($("controleP6").checked ? " (double avec la passe P6)" : "")
+      + ". La duree d'execution est bornee sur la version en ligne : l'estimation peut etre coupee avant la fin. En cas d'echec, choisir un modele plus rapide.";
+  }
   // 14k entree + 6k sortie, double approximativement avec la passe P6
   const base = (14000 * m.priceIn + 6000 * m.priceOut) / 1e6;
   const total = base + ($("controleP6").checked ? base * 0.45 : 0);
-  $("costEstimate").textContent = `Cout estime : ~${total.toFixed(3)} $ par estimation`;
+  $("costEstimate").textContent =
+    `Cout estime : ~${total.toFixed(3)} $ · duree typique ${m.typicalSeconds} s`
+    + ($("controleP6").checked ? " x2" : "");
 }
 
 // ------------------------------------------------------------ photos

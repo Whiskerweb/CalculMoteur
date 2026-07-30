@@ -27,6 +27,12 @@ export interface ModelPreset {
    * la refaire en amont ne produit rien d'exploitable.
    */
   reasoning: "off" | "default";
+  /**
+   * Duree typique d'une estimation, mesuree. Sert a avertir l'utilisateur sur
+   * la version deployee : une fonction serverless a une duree bornee, et un
+   * modele lent peut depasser la limite.
+   */
+  typicalSeconds: number;
   note: string;
 }
 
@@ -40,6 +46,7 @@ export const MODELS: Record<string, ModelPreset> = {
     jsonMode: "none",
     maxTokens: 16000,
     reasoning: "off",
+    typicalSeconds: 75,
     note: "Reference sur instructions longues et contraintes. Pas de mode JSON natif.",
   },
   "x-ai/grok-4.20": {
@@ -51,6 +58,7 @@ export const MODELS: Record<string, ModelPreset> = {
     jsonMode: "object",
     maxTokens: 16000,
     reasoning: "off",
+    typicalSeconds: 40,
     note: "Bon compromis raisonnement/prix, sortie longue peu couteuse.",
   },
   "openai/gpt-5-mini": {
@@ -62,6 +70,7 @@ export const MODELS: Record<string, ModelPreset> = {
     jsonMode: "object",
     maxTokens: 16000,
     reasoning: "off",
+    typicalSeconds: 30,
     note: "Mode JSON natif, bon suivi d'instructions pour son prix.",
   },
   "google/gemini-3.1-flash-lite": {
@@ -73,6 +82,7 @@ export const MODELS: Record<string, ModelPreset> = {
     jsonMode: "object",
     maxTokens: 16000,
     reasoning: "off",
+    typicalSeconds: 8,
     note: "Le plus rapide. Moins fiable sur les regles metier francaises.",
   },
   "deepseek/deepseek-v4-pro": {
@@ -84,11 +94,26 @@ export const MODELS: Record<string, ModelPreset> = {
     jsonMode: "object",
     maxTokens: 16000,
     reasoning: "off",
+    typicalSeconds: 25,
     note: "Le moins cher. Texte seul : les photos passent par une pre-passe vision.",
   },
 };
 
+/** Defaut en local, ou la duree n'est pas bornee : on privilegie la qualite. */
 export const DEFAULT_MODEL = "anthropic/claude-sonnet-5";
+
+/**
+ * Defaut sur la version deployee.
+ *
+ * Ce n'est pas un choix de qualite mais une contrainte de plateforme : une
+ * fonction serverless a une duree d'execution bornee, et Sonnet 5 met 75 s en
+ * moyenne. Gemini Flash Lite est mesure a 8 s, ce qui passe partout. Sonnet
+ * reste selectionnable, avec un avertissement dans l'interface.
+ */
+export const DEPLOYED_DEFAULT_MODEL = "google/gemini-3.1-flash-lite";
+
+/** Au-dela, un modele risque de depasser la limite de duree en serverless. */
+export const SERVERLESS_SAFE_SECONDS = 20;
 
 /** Modele utilise pour la pre-passe vision quand le modele principal est texte seul. */
 export const VISION_FALLBACK = "qwen/qwen3-vl-30b-a3b-instruct";
@@ -121,6 +146,7 @@ export function publicModelList() {
     priceOut: m.priceOut,
     vision: m.vision,
     jsonMode: m.jsonMode,
+    typicalSeconds: m.typicalSeconds,
     note: m.note,
   }));
 }

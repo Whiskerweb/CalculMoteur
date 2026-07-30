@@ -4,22 +4,8 @@
 // Cache memoire revalide par mtime : editer SKILL.md ou une reference et
 // relancer une estimation suffit, pas besoin de redemarrer le serveur.
 
-const SKILL_DIR = new URL("../../", import.meta.url).pathname;
-
-/** Ordre du tableau de routage du SKILL.md. Jamais readDir : l'ordre doit etre
- *  stable pour que le cache de prompt cote provider fonctionne. */
-const REF_ORDER = [
-  "lots.md",
-  "metres.md",
-  "prix.md",
-  "tva-reglementation.md",
-  "redaction.md",
-  "controle.md",
-  "schema-sortie.md",
-];
-
-/** Passe P6 : sous-ensemble suffisant, ~40 % moins cher que le prompt complet. */
-const CONTROLE_REFS = ["controle.md", "metres.md", "prix.md", "schema-sortie.md"];
+import { readSkillFile, skillFileMtime } from "./runtime.ts";
+import { CONTROLE_REFS, REF_ORDER, SKILL_FILE_ORDER } from "./skill-files.ts";
 
 export interface PromptPart {
   name: string;
@@ -98,17 +84,8 @@ function stripFrontmatter(md: string): string {
   return md.slice(end + 4).replace(/^\n+/, "");
 }
 
-function readFile(rel: string): string {
-  return Deno.readTextFileSync(`${SKILL_DIR}${rel}`);
-}
-
-function mtimeOf(rel: string): number {
-  try {
-    return Deno.statSync(`${SKILL_DIR}${rel}`).mtime?.getTime() ?? 0;
-  } catch {
-    return -1;
-  }
-}
+const readFile = readSkillFile;
+const mtimeOf = skillFileMtime;
 
 /** ~3,6 caracteres par token en francais (mesure sur ce corpus). */
 function approxTokens(chars: number): number {
@@ -118,8 +95,8 @@ function approxTokens(chars: number): number {
 // ---------------------------------------------------------------- assemblage
 
 function filesFor(variant: "estimation" | "controle"): string[] {
-  const refs = variant === "controle" ? CONTROLE_REFS : REF_ORDER;
-  return ["SKILL.md", ...refs.map((r) => `references/${r}`), "assets/schema.json"];
+  if (variant === "estimation") return SKILL_FILE_ORDER;
+  return ["SKILL.md", ...CONTROLE_REFS.map((r) => `references/${r}`), "assets/schema.json"];
 }
 
 function assemble(variant: "estimation" | "controle"): BuiltPrompt {
@@ -130,7 +107,7 @@ function assemble(variant: "estimation" | "controle"): BuiltPrompt {
   parts.push({ name: "SKILL.md", chars: skill.length });
   chunks.push(skill);
 
-  const refs = variant === "controle" ? CONTROLE_REFS : REF_ORDER;
+  const refs: readonly string[] = variant === "controle" ? CONTROLE_REFS : REF_ORDER;
   for (const r of refs) {
     const body = readFile(`references/${r}`);
     parts.push({ name: `references/${r}`, chars: body.length });

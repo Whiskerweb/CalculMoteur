@@ -1,0 +1,14 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "public": false,
+  "cleanUrls": true,
+  "headers": [
+    {
+      "source": "/api/estimate",
+      "headers": [
+        { "key": "cache-control", "value": "no-cache, no-transform" },
+        { "key": "x-accel-buffering", "value": "no" }
+      ]
+    }
+  ]
+}

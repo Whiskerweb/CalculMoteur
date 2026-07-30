@@ -8,7 +8,7 @@
 // Regle de conduite : on ne rejette jamais un devis. Une violation s'affiche,
 // elle ne fait pas disparaitre le resultat.
 
-const SKILL_DIR = new URL("../../", import.meta.url).pathname;
+import { readSkillFile, skillFileMtime } from "./runtime.ts";
 
 export interface Fix {
   path: string;
@@ -29,10 +29,9 @@ export interface Violation {
 let schemaCache: { value: any; mtime: number } | null = null;
 
 export function loadSchema(): any {
-  const p = `${SKILL_DIR}assets/schema.json`;
-  const mtime = Deno.statSync(p).mtime?.getTime() ?? 0;
+  const mtime = skillFileMtime("assets/schema.json");
   if (schemaCache && schemaCache.mtime === mtime) return schemaCache.value;
-  const value = JSON.parse(Deno.readTextFileSync(p));
+  const value = JSON.parse(readSkillFile("assets/schema.json"));
   schemaCache = { value, mtime };
   return value;
 }

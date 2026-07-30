@@ -1,0 +1,11 @@
+{
+  "name": "calculmoteur",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Skill de chiffrage TCE Rapido'devis et son createur d'estimation",
+  "scripts": {
+    "bundle": "deno run --allow-read --allow-write app/lib/build-source.ts",
+    "dev": "deno run --allow-env --allow-net --allow-read --allow-write --env-file=.env app/server.ts"
+  }
+}
