@@ -62,6 +62,13 @@ async function once(p: CallParams): Promise<CallResult> {
   const supportsJson = !preset || preset.jsonMode === "object";
   if (p.json && supportsJson) body.response_format = { type: "json_object" };
 
+  // Raisonnement etendu coupe par defaut : voir le commentaire de ModelPreset.
+  // Un modele qui reflechit 16 000 tokens puis renvoie un content vide coute
+  // le prix plein et ne produit rien.
+  if ((preset?.reasoning ?? "off") === "off") {
+    body.reasoning = { enabled: false };
+  }
+
   const ctrl = new AbortController();
   const timer = setTimeout(() => ctrl.abort(), TIMEOUT_MS);
   const started = Date.now();

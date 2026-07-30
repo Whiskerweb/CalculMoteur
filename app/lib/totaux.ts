@@ -187,16 +187,26 @@ export function recompute(est: any): Recompute {
   };
 }
 
-/** Ecrase estimation.totaux avec les valeurs recalculees, conserve l'original. */
-export function applyRecompute(est: any, rc: Recompute): any {
+/**
+ * Ecrase estimation.totaux avec les valeurs recalculees.
+ *
+ * Les totaux annonces par le modele sont retournes **a cote**, jamais greffes
+ * dans l'objet estimation : le schema pose additionalProperties:false, donc une
+ * cle totaux_llm ajoutee la ferait echouer la validation de mon propre fait, et
+ * la passe P6 perdait son temps a signaler ce champ intrus.
+ */
+export function applyRecompute(
+  est: any,
+  rc: Recompute,
+): { estimation: any; totaux_llm: any } {
   const out = structuredClone(est);
-  out.totaux_llm = est?.totaux ?? null;
+  const totaux_llm = est?.totaux ?? null;
   out.totaux = {
     total_ht: rc.total_ht,
     total_tva: rc.total_tva,
     total_ttc: rc.total_ttc,
     ratio_eur_m2: rc.ratio_eur_m2 ?? 0,
-    ...(rc.aleas ? { aleas: est?.totaux?.aleas } : {}),
+    ...(est?.totaux?.aleas ? { aleas: est.totaux.aleas } : {}),
   };
-  return out;
+  return { estimation: out, totaux_llm };
 }

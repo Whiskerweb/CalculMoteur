@@ -83,6 +83,24 @@ async function completeIfTruncated(
   let durationMs = first.durationMs;
   let finishReason = first.finishReason;
   let n = 0;
+  let aborted: string | null = null;
+
+  // Garde-fou : un appel qui epuise son budget de tokens en renvoyant un
+  // content vide n'a rien ecrit qu'on puisse continuer. Relancer rebrule le
+  // meme budget pour le meme resultat — mesure a 48 000 tokens perdus sur un
+  // seul run avant l'ajout de ce test.
+  if (finishReason === "length" && !text.trim()) {
+    return {
+      text,
+      usage,
+      costUsd,
+      durationMs,
+      finishReason,
+      continuations: 0,
+      aborted:
+        "budget de tokens epuise sans aucun contenu produit — continuation inutile, abandon",
+    };
+  }
 
   while (finishReason === "length" && n < MAX_CONTINUATIONS) {
     n++;
@@ -101,14 +119,21 @@ async function completeIfTruncated(
         },
       ],
     });
-    text += r.text;
     usage = { in: usage.in + r.usage.in, out: usage.out + r.usage.out };
     costUsd += r.costUsd;
     durationMs += r.durationMs;
     finishReason = r.finishReason;
+
+    // Meme garde-fou dans la boucle : une continuation vide signifie que le
+    // modele ne produit plus rien d'utile. On s'arrete avec ce qu'on a.
+    if (!r.text.trim()) {
+      aborted = `continuation ${n} vide — arret avec le contenu deja obtenu`;
+      break;
+    }
+    text += r.text;
   }
 
-  return { text, usage, costUsd, durationMs, finishReason, continuations: n };
+  return { text, usage, costUsd, durationMs, finishReason, continuations: n, aborted };
 }
 
 // -------------------------------------------------------------- /api/estimate
@@ -230,6 +255,7 @@ async function handleEstimate(req: Request): Promise<Response> {
         send("llm", {
           finishReason: done.finishReason,
           continuations: done.continuations,
+          aborted: done.aborted,
           usage: done.usage,
           costUsd: done.costUsd,
           durationMs: done.durationMs,
@@ -238,7 +264,18 @@ async function handleEstimate(req: Request): Promise<Response> {
         });
 
         if (!done.text.trim()) {
-          send("error", { fatal: true, stage: "llm", message: "Le modele a renvoye une reponse vide (refus ou filtre)." });
+          send("cost", {
+            calls,
+            totalCostUsd: calls.reduce((s, c) => s + c.costUsd, 0),
+            totalDurationMs: calls.reduce((s, c) => s + c.durationMs, 0),
+          });
+          send("error", {
+            fatal: true,
+            stage: "llm",
+            message: done.aborted
+              ? `Aucun contenu produit : ${done.aborted}. ${done.usage.out} tokens de sortie facturés. Réessayer avec un autre modèle.`
+              : "Le modele a renvoye une reponse vide (refus ou filtre).",
+          });
           send("done", { ok: false });
           return;
         }
@@ -247,7 +284,22 @@ async function handleEstimate(req: Request): Promise<Response> {
         const ex = extractJson(done.text, done.finishReason === "length");
         send("parse", { ok: ex.ok, method: ex.method, repairs: ex.repairs, error: ex.error });
         if (!ex.ok) {
-          send("error", { fatal: true, stage: "parse", message: ex.error ?? "JSON illisible", raw: done.text.slice(0, 4000) });
+          // La sortie brute est ecrite sur disque : 15k caracteres dans une
+          // frame SSE sont inexploitables, et sans elle on ne peut pas
+          // diagnostiquer pourquoi le modele a produit du JSON invalide.
+          let dump: string | null = null;
+          try {
+            Deno.mkdirSync(new URL("../.debug/", import.meta.url).pathname, { recursive: true });
+            dump = new URL("../.debug/last-failed-raw.txt", import.meta.url).pathname;
+            Deno.writeTextFileSync(dump, done.text);
+          } catch { dump = null; }
+          send("error", {
+            fatal: true,
+            stage: "parse",
+            message: ex.error ?? "JSON illisible",
+            dump,
+            raw: done.text.slice(0, 4000),
+          });
           send("done", { ok: false });
           return;
         }
@@ -265,8 +317,8 @@ async function handleEstimate(req: Request): Promise<Response> {
         });
 
         const rc1 = recompute(c1.value);
-        const est1 = applyRecompute(c1.value, rc1);
-        send("estimation", { version: "initiale", estimation: est1, totals: rc1 });
+        const { estimation: est1, totaux_llm: llm1 } = applyRecompute(c1.value, rc1);
+        send("estimation", { version: "initiale", estimation: est1, totals: rc1, totaux_llm: llm1 });
 
         // ---- passe P6 optionnelle
         if (withControle) {
@@ -305,7 +357,7 @@ async function handleEstimate(req: Request): Promise<Response> {
               const c2 = coerce(ap.estimation);
               const v2 = validate(c2.value, schema);
               const rc2 = recompute(c2.value);
-              const est2 = applyRecompute(c2.value, rc2);
+              const { estimation: est2, totaux_llm: llm2 } = applyRecompute(c2.value, rc2);
 
               send("validate", {
                 version: "post-controle",
@@ -316,6 +368,7 @@ async function handleEstimate(req: Request): Promise<Response> {
                 version: "post-controle",
                 estimation: est2,
                 totals: rc2,
+                totaux_llm: llm2,
                 delta: {
                   total_ht: Math.round((rc2.total_ht - rc1.total_ht) * 100) / 100,
                   nbPostes: rc2.nbPostes - rc1.nbPostes,

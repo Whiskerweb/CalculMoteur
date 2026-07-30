@@ -16,6 +16,17 @@ export interface ModelPreset {
   vision: boolean;
   jsonMode: "object" | "none";
   maxTokens: number;
+  /**
+   * "off" -> on envoie reasoning:{enabled:false} a OpenRouter.
+   *
+   * C'est le defaut ici, et ce n'est pas une economie de bouts de chandelle :
+   * mesure le 2026-07-29, Sonnet 5 avec le raisonnement actif a consomme les
+   * 16 000 tokens de sortie **entierement en raisonnement** sur un brief de
+   * salle de bains, en renvoyant un content vide et finish_reason "length".
+   * Le skill est deja une procedure de raisonnement explicite en 7 passes :
+   * la refaire en amont ne produit rien d'exploitable.
+   */
+  reasoning: "off" | "default";
   note: string;
 }
 
@@ -28,6 +39,7 @@ export const MODELS: Record<string, ModelPreset> = {
     vision: true,
     jsonMode: "none",
     maxTokens: 16000,
+    reasoning: "off",
     note: "Reference sur instructions longues et contraintes. Pas de mode JSON natif.",
   },
   "x-ai/grok-4.20": {
@@ -38,6 +50,7 @@ export const MODELS: Record<string, ModelPreset> = {
     vision: true,
     jsonMode: "object",
     maxTokens: 16000,
+    reasoning: "off",
     note: "Bon compromis raisonnement/prix, sortie longue peu couteuse.",
   },
   "openai/gpt-5-mini": {
@@ -48,6 +61,7 @@ export const MODELS: Record<string, ModelPreset> = {
     vision: true,
     jsonMode: "object",
     maxTokens: 16000,
+    reasoning: "off",
     note: "Mode JSON natif, bon suivi d'instructions pour son prix.",
   },
   "google/gemini-3.1-flash-lite": {
@@ -58,6 +72,7 @@ export const MODELS: Record<string, ModelPreset> = {
     vision: true,
     jsonMode: "object",
     maxTokens: 16000,
+    reasoning: "off",
     note: "Le plus rapide. Moins fiable sur les regles metier francaises.",
   },
   "deepseek/deepseek-v4-pro": {
@@ -68,6 +83,7 @@ export const MODELS: Record<string, ModelPreset> = {
     vision: false,
     jsonMode: "object",
     maxTokens: 16000,
+    reasoning: "off",
     note: "Le moins cher. Texte seul : les photos passent par une pre-passe vision.",
   },
 };
