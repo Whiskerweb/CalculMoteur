@@ -110,10 +110,49 @@ function snapTva(n: number): number | null {
 }
 
 /** Normalise en place une copie profonde, et journalise chaque substitution. */
+/**
+ * Cles qui appartiennent a la racine du devis. Sert au sauvetage ci-dessous.
+ * Volontairement en dur plutot que lu du schema : coerce() tourne avant
+ * loadSchema() et n'a pas besoin de la dependance.
+ */
+const ROOT_KEYS = [
+  "lots", "totaux", "alertes_regulatoires", "dispositifs_aides",
+  "questions_bloquantes", "confiance_globale", "confiance_commentaire",
+];
+
+/**
+ * Le modele oublie parfois l'accolade fermante de "contexte". Les cles racine
+ * qui suivent (lots en premier) sont alors avalees comme des cles DE contexte,
+ * le document est desequilibre d'un cran, et closeTruncated() le referme sans
+ * voir le probleme. Resultat : plus de lots a la racine, recompute() boucle sur
+ * un tableau vide et le devis s'affiche a 0 €.
+ *
+ * On remonte ces cles avant toute validation. Mesure sur un T3 le 2026-07-30 :
+ * 11 837 tokens de sortie, finish_reason "stop", devis complet — et 0 € affiche.
+ */
+function hoistFromContexte(v: any, fixes: Fix[]): void {
+  const ctx = v?.contexte;
+  if (!ctx || typeof ctx !== "object") return;
+  for (const key of ROOT_KEYS) {
+    // On ne touche pas si la racine porte deja la cle : elle fait foi.
+    if (ctx[key] === undefined || v[key] !== undefined) continue;
+    v[key] = ctx[key];
+    delete ctx[key];
+    fixes.push({
+      path: `contexte.${key}`,
+      from: `contexte.${key}`,
+      to: key,
+      reason: "cle racine imbriquee par erreur dans contexte, remontee",
+    });
+  }
+}
+
 export function coerce(input: any): { value: any; fixes: Fix[] } {
   const fixes: Fix[] = [];
   const v = structuredClone(input);
   if (!v || typeof v !== "object") return { value: v, fixes };
+
+  hoistFromContexte(v, fixes);
 
   const num = (obj: any, key: string, path: string) => {
     if (obj[key] === undefined) return;

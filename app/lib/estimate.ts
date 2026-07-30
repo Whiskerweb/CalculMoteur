@@ -270,7 +270,10 @@ export async function handleEstimate(req: Request): Promise<Response> {
 
         // ---- extraction
         const ex = extractJson(done.text, done.finishReason === "length");
-        send("parse", { ok: ex.ok, method: ex.method, repairs: ex.repairs, error: ex.error });
+        // Une reparation qui "reussit" peut produire une structure fausse
+        // silencieusement (cf. hoistFromContexte). On garde la sortie brute.
+        const repairDump = ex.method === "repair" ? writeDebugDump("last-repaired-raw.txt", done.text) : null;
+        send("parse", { ok: ex.ok, method: ex.method, repairs: ex.repairs, error: ex.error, dump: repairDump });
         if (!ex.ok) {
           // La sortie brute est ecrite sur disque : 15k caracteres dans une
           // frame SSE sont inexploitables, et sans elle on ne peut pas
@@ -300,6 +303,30 @@ export async function handleEstimate(req: Request): Promise<Response> {
         });
 
         const rc1 = recompute(c1.value);
+
+        // recompute() ne leve jamais : un devis sans lots exploitables ressort a
+        // 0 € et applyRecompute() ecrase les totaux du modele avec ces zeros.
+        // Un devis a 0 € affiche sans erreur est pire qu'une erreur : on coupe.
+        if (rc1.nbPostes === 0) {
+          const dump = writeDebugDump("last-empty-estimation.txt", done.text);
+          send("cost", {
+            calls,
+            totalCostUsd: calls.reduce((s, c) => s + c.costUsd, 0),
+            totalDurationMs: calls.reduce((s, c) => s + c.durationMs, 0),
+          });
+          send("error", {
+            fatal: true,
+            stage: "structure",
+            message:
+              `Le JSON produit ne contient aucun poste chiffrable (extraction "${ex.method}"` +
+              `, fin "${done.finishReason}"). Les totaux vaudraient 0 € : resultat non affiche. Relancer l'estimation.`,
+            dump,
+            raw: done.text.slice(0, 4000),
+          });
+          send("done", { ok: false });
+          return;
+        }
+
         const { estimation: est1, totaux_llm: llm1 } = applyRecompute(c1.value, rc1);
         send("estimation", { version: "initiale", estimation: est1, totals: rc1, totaux_llm: llm1 });
 
