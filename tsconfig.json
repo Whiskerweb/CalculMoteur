@@ -1,0 +1,15 @@
+{
+  "//": "Config destinee au compilateur de Vercel. app/server.ts en est exclu : c'est le serveur de dev Deno, il utilise les globals Deno.* que Vercel n'a pas et n'a pas besoin de compiler. Deno, lui, se configure par deno.json.",
+  "compilerOptions": {
+    "target": "ES2022",
+    "lib": ["ES2022", "DOM", "DOM.Iterable", "WebWorker"],
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "strict": true,
+    "noEmit": true,
+    "skipLibCheck": true,
+    "isolatedModules": true
+  },
+  "include": ["api/**/*.ts", "app/lib/**/*.ts"],
+  "exclude": ["app/server.ts", "app/lib/build-source.ts"]
+}

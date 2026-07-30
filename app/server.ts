@@ -9,11 +9,11 @@
 //   deno run --allow-env --allow-net --allow-read --allow-write --env-file=.env app/server.ts
 //   puis http://127.0.0.1:8788/
 
-import { getSystemPrompt } from "./lib/prompt.ts";
-import { DEFAULT_MODEL, MODELS, publicModelList } from "./lib/models.ts";
-import { loadSchema } from "./lib/validate.ts";
-import { handleEstimate } from "./lib/estimate.ts";
-import { env } from "./lib/runtime.ts";
+import { getSystemPrompt } from "./lib/prompt";
+import { DEFAULT_MODEL, MODELS, publicModelList } from "./lib/models";
+import { loadSchema } from "./lib/validate";
+import { handleEstimate } from "./lib/estimate";
+import { env } from "./lib/runtime";
 
 const PORT = Number(env("PORT") ?? 8788);
 const HOST = "127.0.0.1";

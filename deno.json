@@ -1,0 +1,12 @@
+{
+  "//": "sloppy-imports autorise les imports relatifs sans extension .ts : les memes fichiers deviennent lisibles par Deno en local et par le compilateur de Vercel, qui refuse l'extension explicite. Les compilerOptions sont declarees ici car Deno lit aussi tsconfig.json, dont le lib ne contient pas deno.ns.",
+  "unstable": ["sloppy-imports"],
+  "compilerOptions": {
+    "lib": ["deno.window", "deno.ns", "esnext", "dom", "dom.iterable"],
+    "strict": true
+  },
+  "tasks": {
+    "dev": "deno run --allow-env --allow-net --allow-read --allow-write --env-file=.env app/server.ts",
+    "bundle": "deno run --allow-read --allow-write app/lib/build-source.ts"
+  }
+}

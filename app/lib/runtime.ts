@@ -8,7 +8,7 @@
 // Tout le reste du code (openrouter, prompt, validate) passe par ici et ignore
 // sur quelle plateforme il tourne.
 
-import { SKILL_FILES } from "./skill-source.ts";
+import { SKILL_FILES } from "./skill-source";
 
 // deno-lint-ignore no-explicit-any
 const g = globalThis as any;

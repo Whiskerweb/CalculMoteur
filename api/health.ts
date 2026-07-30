@@ -4,10 +4,10 @@
 // parsable, la variable d'environnement presente. Ne renvoie qu'un booleen
 // pour la cle, jamais un fragment.
 
-import { getSystemPrompt } from "../app/lib/prompt.ts";
-import { MODELS } from "../app/lib/models.ts";
-import { loadSchema } from "../app/lib/validate.ts";
-import { env } from "../app/lib/runtime.ts";
+import { getSystemPrompt } from "../app/lib/prompt";
+import { MODELS } from "../app/lib/models";
+import { loadSchema } from "../app/lib/validate";
+import { env } from "../app/lib/runtime";
 
 export const config = { runtime: "edge" };
 

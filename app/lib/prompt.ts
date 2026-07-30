@@ -4,8 +4,8 @@
 // Cache memoire revalide par mtime : editer SKILL.md ou une reference et
 // relancer une estimation suffit, pas besoin de redemarrer le serveur.
 
-import { readSkillFile, skillFileMtime } from "./runtime.ts";
-import { CONTROLE_REFS, REF_ORDER, SKILL_FILE_ORDER } from "./skill-files.ts";
+import { readSkillFile, skillFileMtime } from "./runtime";
+import { CONTROLE_REFS, REF_ORDER, SKILL_FILE_ORDER } from "./skill-files";
 
 export interface PromptPart {
   name: string;

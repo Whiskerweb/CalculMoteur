@@ -9,7 +9,7 @@
 // etre embarque dans le bundle JavaScript. En local, prompt.ts prefere le
 // disque quand il y a acces, ce qui preserve l'edition a chaud.
 
-import { SKILL_FILE_ORDER } from "./skill-files.ts";
+import { SKILL_FILE_ORDER } from "./skill-files";
 
 const ROOT = new URL("../../", import.meta.url).pathname;
 const OUT = new URL("./skill-source.ts", import.meta.url).pathname;

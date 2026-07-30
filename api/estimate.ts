@@ -8,7 +8,7 @@
 //
 // La logique est celle de app/lib/estimate.ts, partagee avec le serveur local.
 
-import { handleEstimate } from "../app/lib/estimate.ts";
+import { handleEstimate } from "../app/lib/estimate";
 
 export const config = { runtime: "edge" };
 

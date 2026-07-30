@@ -8,7 +8,7 @@
 // Regle de conduite : on ne rejette jamais un devis. Une violation s'affiche,
 // elle ne fait pas disparaitre le resultat.
 
-import { readSkillFile, skillFileMtime } from "./runtime.ts";
+import { readSkillFile, skillFileMtime } from "./runtime";
 
 export interface Fix {
   path: string;

@@ -2,7 +2,7 @@
 //
 // Presets et tarifs. Ne renvoie jamais la cle API.
 
-import { DEPLOYED_DEFAULT_MODEL, publicModelList } from "../app/lib/models.ts";
+import { DEPLOYED_DEFAULT_MODEL, publicModelList } from "../app/lib/models";
 
 export const config = { runtime: "edge" };
 

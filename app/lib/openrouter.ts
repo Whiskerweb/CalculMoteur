@@ -3,8 +3,8 @@
 // Client minimal OpenRouter. Meme forme que
 // Rapido2/supabase/functions/_shared/ai-router.ts, sans la couche providers.
 
-import { estimateCost, getPreset } from "./models.ts";
-import { env } from "./runtime.ts";
+import { estimateCost, getPreset } from "./models";
+import { env } from "./runtime";
 
 const ENDPOINT = "https://openrouter.ai/api/v1/chat/completions";
 // Un devis complet fait 6-12k tokens de sortie : mesure a 180 s coupait Sonnet 5
